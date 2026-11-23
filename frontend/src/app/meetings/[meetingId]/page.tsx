@@ -127,14 +127,16 @@ export default function MeetingPage() {
                     <td className="p-2 font-medium">{m.name}</td>
                     {Object.keys(m.weeks).map((w) => {
                       const cell = m.weeks[w];
-                      const cls = cell.status === "on_track" ? "bg-emerald-50 text-emerald-700" : cell.status === "off_track" ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-400";
+                      const cls = cell.status === "on_track" ? "bg-emerald-50/60" : cell.status === "off_track" ? "bg-rose-50/60" : "bg-slate-50/40";
                       return (
-                        <td key={w} className={`p-1 text-center ${cls}`}>
-                          <div className="font-mono font-semibold">{cell.score ?? "—"}</div>
+                        <td key={w} className={`p-2 text-center transition-colors ${cls} hover:bg-slate-100`}>
+                          <div className={`font-mono text-sm font-bold ${cell.status === "on_track" ? "text-emerald-700" : cell.status === "off_track" ? "text-rose-700" : "text-slate-300"}`}>
+                            {cell.score ?? "—"}
+                          </div>
                           {cell.status === "off_track" && (
                             <button
                               onClick={async () => { await apiFetchAuth(`/teams/${teamId}/issues/from-measurable`, { method: "POST", body: JSON.stringify({ measurable_id: m.id, week_start: w }) }); loadTeamData(teamId); }}
-                              className="text-[10px] font-medium text-amber-600 hover:underline"
+                              className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 transition hover:bg-amber-200"
                             >
                               Make issue
                             </button>

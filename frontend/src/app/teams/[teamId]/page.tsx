@@ -126,17 +126,24 @@ export default function TeamPage() {
                   <td className="sticky left-0 bg-white p-2 font-medium">{m.name}</td>
                   {weeks.map((w) => {
                     const cell = m.weeks[w];
-                    const cls = cell.status === "on_track" ? "bg-emerald-50 text-emerald-700" : cell.status === "off_track" ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-400";
+                    const cls = cell.status === "on_track" ? "bg-emerald-50/60" : cell.status === "off_track" ? "bg-rose-50/60" : "bg-slate-50/40";
                     return (
-                      <td key={w} className={`p-1 text-center ${cls}`}>
-                        <div className="font-mono font-semibold">{cell.score ?? "—"}</div>
+                      <td key={w} className={`group/cell relative p-2 text-center transition-colors ${cls} hover:bg-slate-100`}>
+                        <div className={`font-mono text-sm font-bold ${cell.status === "on_track" ? "text-emerald-700" : cell.status === "off_track" ? "text-rose-700" : "text-slate-300"}`}>
+                          {cell.score ?? "—"}
+                        </div>
                         {cell.status === "off_track" && (
-                          <button onClick={() => makeIssue(m.id, w)} className="text-[10px] font-medium text-amber-600 hover:underline">Make issue</button>
+                          <button
+                            onClick={() => makeIssue(m.id, w)}
+                            className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 transition hover:bg-amber-200"
+                          >
+                            Make issue
+                          </button>
                         )}
                         <input
                           aria-label={`Score for ${m.name} week ${w}`}
-                          className="mt-1 w-12 rounded border border-slate-200 px-1 text-[10px]"
-                          placeholder="score"
+                          className="mt-1 w-11 rounded-md border border-slate-200 bg-white/80 px-1 py-0.5 text-center text-[10px] text-slate-600 opacity-0 transition group-hover/cell:opacity-100 focus:opacity-100 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                          placeholder="edit"
                           onBlur={(e) => { if (e.target.value) editScore(m.id, w, e.target.value); }}
                         />
                       </td>
