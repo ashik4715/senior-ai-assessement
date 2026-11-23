@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const SECTION_NAMES = ["Scorecard (5 min)", "IDS (60 min)", "Conclude (10 min)"];
-const DURATIONS = [5,60,10];
+const SECTION_NAMES = ["Scorecard", "IDS", "Conclude"];
+const DURATIONS = [5, 60, 10];
 
 export default function MeetingPage() {
   const params = useParams();
@@ -24,12 +24,9 @@ export default function MeetingPage() {
   async function loadMeeting() {
     const m = await apiFetchAuth(`/meetings/${meetingId}`);
     setMeeting(m);
-    if (!teamId && m.team_id) {
-      setTeamId(m.team_id);
-    }
+    if (!teamId && m.team_id) setTeamId(m.team_id);
     return m;
   }
-
   async function loadTeamData(tid: string) {
     const [ms, iss, td] = await Promise.all([
       apiFetchAuth(`/teams/${tid}/measurables`),
@@ -40,101 +37,107 @@ export default function MeetingPage() {
     setIssues(iss);
     setTodosData(td);
   }
-
   useEffect(() => {
-    loadMeeting().then(m => { if (m?.team_id) loadTeamData(m.team_id); });
+    loadMeeting().then((m) => { if (m?.team_id) loadTeamData(m.team_id); });
     const iv = setInterval(loadMeeting, 2000);
     return () => clearInterval(iv);
   }, [meetingId]);
-
-  useEffect(() => {
-    if (teamId) loadTeamData(teamId);
-  }, [teamId]);
-
+  useEffect(() => { if (teamId) loadTeamData(teamId); }, [teamId]);
   useEffect(() => {
     if (meeting?.ended_at && !summary) {
-      apiFetchAuth(`/meetings/${meetingId}/summary`).then(setSummary).catch(()=>{});
+      apiFetchAuth(`/meetings/${meetingId}/summary`).then(setSummary).catch(() => {});
     }
   }, [meeting?.ended_at]);
 
-  async function advance() {
-    await apiFetchAuth(`/meetings/${meetingId}/advance`, { method: "POST" });
-    loadMeeting();
-  }
-  async function end() {
-    await apiFetchAuth(`/meetings/${meetingId}/end`, { method: "POST" });
-    loadMeeting();
-  }
+  async function advance() { await apiFetchAuth(`/meetings/${meetingId}/advance`, { method: "POST" }); loadMeeting(); }
+  async function end() { await apiFetchAuth(`/meetings/${meetingId}/end`, { method: "POST" }); loadMeeting(); }
   async function rate() {
     if (!rating) return;
     await apiFetchAuth(`/meetings/${meetingId}/rate`, { method: "POST", body: JSON.stringify({ rating: Number(rating) }) });
     setRating("");
     loadMeeting();
   }
-  async function join() {
-    await apiFetchAuth(`/meetings/${meetingId}/join`, { method: "POST" });
-    loadMeeting();
-  }
+  async function join() { await apiFetchAuth(`/meetings/${meetingId}/join`, { method: "POST" }); loadMeeting(); }
 
-  if (!meeting) return <div className="p-4">Loading...</div>;
+  if (!meeting) return <div className="p-6 text-slate-500">Loading meeting…</div>;
 
-  const elapsedMin = Math.floor(meeting.elapsed_seconds / 60);
-  const elapsedSec = meeting.elapsed_seconds % 60;
-  const durSec = meeting.duration_minutes * 60;
-  const over = meeting.over_time;
+  const mins = Math.floor(meeting.elapsed_seconds / 60);
+  const secs = meeting.elapsed_seconds % 60;
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold">Meeting</h1>
-        <Button variant="outline" onClick={join}>Join</Button>
-        <Button variant="outline" onClick={()=>router.push(`/teams/${teamId}`)}>Back to team</Button>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-amber-600">Level 10 meeting</p>
+          <h1 className="text-2xl font-bold tracking-tight">In progress</h1>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={join}>Join</Button>
+          <Button variant="outline" onClick={() => router.push(`/teams/${teamId}`)}>Back to team</Button>
+        </div>
+      </header>
 
       <Card>
-        <CardHeader><CardTitle>Agenda & Timer</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Agenda & timer</CardTitle>
+        </CardHeader>
         <CardContent>
-          <div className="flex gap-4 items-center">
+          <div className="flex flex-wrap gap-2">
             {SECTION_NAMES.map((name, idx) => (
-              <div key={idx} className={`px-2 py-1 rounded ${meeting.section===idx?"bg-blue-200 font-bold":""}`}>{name}</div>
+              <div
+                key={idx}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+                  meeting.section === idx ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {name} · {DURATIONS[idx]}m
+              </div>
             ))}
           </div>
-          <div className={`text-2xl font-mono mt-2 ${over?"text-red-600":""}`}>
-            {elapsedMin}:{String(elapsedSec).padStart(2,"0")} / {meeting.duration_minutes}:00 {over?"(OVER)":""}
+          <div className={`mt-4 font-mono text-5xl font-bold tabular-nums ${meeting.over_time ? "text-rose-600" : "text-slate-900"}`}>
+            {String(mins).padStart(2, "0")}:{String(secs).padStart(2, "0")}
+            <span className="ml-3 text-lg font-sans font-normal text-slate-400">/ {meeting.duration_minutes}:00</span>
+            {meeting.over_time && <span className="ml-3 text-base font-sans font-semibold text-rose-600">OVERTIME</span>}
           </div>
-          <div className="text-sm mt-1">Attendees: {(meeting.attendee_ids||[]).join(", ")}</div>
-          <div className="flex gap-2 mt-2">
-            <Button onClick={advance} disabled={meeting.ended_at}>Next section</Button>
-            <Button variant="destructive" onClick={end} disabled={meeting.ended_at}>End meeting</Button>
+          <p className="mt-2 text-sm text-slate-500">Attendees: {(meeting.attendee_ids || []).join(", ")}</p>
+          <div className="mt-4 flex gap-2">
+            <Button onClick={advance} disabled={!!meeting.ended_at}>Next section</Button>
+            <Button variant="destructive" onClick={end} disabled={!!meeting.ended_at}>End meeting</Button>
           </div>
-          {meeting.ended_at && <div className="text-sm text-gray-500 mt-1">Meeting ended</div>}
+          {meeting.ended_at && <p className="mt-2 text-sm text-slate-500">Meeting ended.</p>}
         </CardContent>
       </Card>
 
-      {/* Section content */}
       {meeting.section === 0 && (
         <Card>
-          <CardHeader><CardTitle>Scorecard</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Scorecard — review last closed week</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="text-xs border-collapse">
+            <table className="w-full border-collapse text-xs">
               <thead>
-                <tr>
-                  <th className="p-1 border">Measurable</th>
-                  {(measurables.length ? Object.keys(measurables[0].weeks) : []).map(w => <th key={w} className="p-1 border">{w.slice(5)}</th>)}
+                <tr className="bg-slate-50">
+                  <th className="p-2 text-left font-semibold">Measurable</th>
+                  {(measurables.length ? Object.keys(measurables[0].weeks) : []).map((w) => (
+                    <th key={w} className="p-2 text-center font-medium text-slate-500">{w.slice(5)}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {measurables.map((m:any) => (
-                  <tr key={m.id}>
-                    <td className="p-1 border font-medium">{m.name}</td>
-                    {(Object.keys(m.weeks)).map(w => {
+                {measurables.map((m: any) => (
+                  <tr key={m.id} className="border-t border-slate-100">
+                    <td className="p-2 font-medium">{m.name}</td>
+                    {Object.keys(m.weeks).map((w) => {
                       const cell = m.weeks[w];
-                      const color = cell.status === "on_track" ? "bg-green-100" : cell.status === "off_track" ? "bg-red-100" : "bg-gray-100";
+                      const cls = cell.status === "on_track" ? "bg-emerald-50 text-emerald-700" : cell.status === "off_track" ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-400";
                       return (
-                        <td key={w} className={`p-1 border text-center ${color}`}>
-                          <div>{cell.score ?? "-"}</div>
+                        <td key={w} className={`p-1 text-center ${cls}`}>
+                          <div className="font-mono font-semibold">{cell.score ?? "—"}</div>
                           {cell.status === "off_track" && (
-                            <button className="text-[10px] text-blue-600" onClick={async()=>{ await apiFetchAuth(`/teams/${teamId}/issues/from-measurable`, {method:"POST", body: JSON.stringify({measurable_id:m.id, week_start:w})}); loadTeamData(teamId); }}>Make Issue</button>
+                            <button
+                              onClick={async () => { await apiFetchAuth(`/teams/${teamId}/issues/from-measurable`, { method: "POST", body: JSON.stringify({ measurable_id: m.id, week_start: w }) }); loadTeamData(teamId); }}
+                              className="text-[10px] font-medium text-amber-600 hover:underline"
+                            >
+                              Make issue
+                            </button>
                           )}
                         </td>
                       );
@@ -149,18 +152,22 @@ export default function MeetingPage() {
 
       {meeting.section === 1 && (
         <Card>
-          <CardHeader><CardTitle>IDS - Issues</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {issues.map((i:any) => (
-              <div key={i.id} className="border rounded p-2 text-sm space-y-1">
-                <div className="font-medium">{i.title}</div>
-                <div className="text-xs">Owner {i.owner_id} Priority {i.priority ?? "none"}</div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={async()=>{ const note=prompt("Resolution note:"); if(!note) return; await apiFetchAuth(`/teams/${teamId}/issues/${i.id}/solve`,{method:"POST",body:JSON.stringify({note})}); loadTeamData(teamId); }}>Solve</Button>
-                  <Button size="sm" variant="outline" onClick={async()=>{ const title=prompt("To-Do title:"); if(!title) return; const owner=prompt("Owner user id:"); if(!owner) return; await apiFetchAuth(`/teams/${teamId}/issues/${i.id}/todos`,{method:"POST",body:JSON.stringify({title,owner_id:owner})}); loadTeamData(teamId); }}>Add To-Do</Button>
+          <CardHeader><CardTitle>IDS — issues in order</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {issues.map((i: any) => (
+              <div key={i.id} className="rounded-lg border border-slate-200 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium">{i.title}</span>
+                  <span className="text-xs text-slate-400">P{i.priority ?? "—"}</span>
+                </div>
+                <div className="mt-1 text-xs text-slate-500">Owner {i.owner_id}</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={async () => { const note = prompt("Resolution note:"); if (!note) return; await apiFetchAuth(`/teams/${teamId}/issues/${i.id}/solve`, { method: "POST", body: JSON.stringify({ note }) }); loadTeamData(teamId); }}>Solve</Button>
+                  <Button size="sm" variant="outline" onClick={async () => { const title = prompt("To-Do title:"); if (!title) return; const owner = prompt("Owner user id:"); if (!owner) return; await apiFetchAuth(`/teams/${teamId}/issues/${i.id}/todos`, { method: "POST", body: JSON.stringify({ title, owner_id: owner }) }); loadTeamData(teamId); }}>Add To-Do</Button>
                 </div>
               </div>
             ))}
+            {issues.length === 0 && <p className="text-sm text-slate-500">No open issues.</p>}
           </CardContent>
         </Card>
       )}
@@ -168,32 +175,34 @@ export default function MeetingPage() {
       {meeting.section === 2 && (
         <Card>
           <CardHeader><CardTitle>Conclude</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-sm">New To-Dos created during meeting:</div>
-            <ul className="text-xs list-disc ml-4">
-              {(todosData?.todos||[]).map((t:any) => <li key={t.id}>{t.title} ({t.owner_id})</li>)}
-            </ul>
+          <CardContent className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">New To-Dos created during this meeting</h3>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                {(todosData?.todos || []).map((t: any) => <li key={t.id}>{t.title} ({t.owner_id})</li>)}
+              </ul>
+            </div>
             {!meeting.ended_at && (
-              <div className="flex gap-2 items-center">
-                <Input placeholder="Rating 1-10" value={rating} onChange={e=>setRating(e.target.value)} className="w-24" />
-                <Button onClick={rate}>Rate</Button>
+              <div className="flex items-center gap-2">
+                <Input placeholder="Rating 1–10" value={rating} onChange={(e) => setRating(e.target.value)} className="w-28" />
+                <Button onClick={rate}>Submit rating</Button>
               </div>
             )}
-            <div className="text-xs">Ratings: {JSON.stringify(meeting.ratings)}</div>
+            <p className="text-xs text-slate-500">Ratings: {Object.entries(meeting.ratings || {}).map(([u, r]) => `${u}: ${r}`).join(", ") || "none yet"}</p>
           </CardContent>
         </Card>
       )}
 
       {summary && (
         <Card>
-          <CardHeader><CardTitle>Summary</CardTitle></CardHeader>
-          <CardContent className="text-sm space-y-1">
-            <div>Scorecard week: {summary.scorecard_week}</div>
-            <div>Measurable status: {JSON.stringify(summary.measurable_status)}</div>
-            <div>Issues solved: {(summary.issues_solved||[]).join(", ")}</div>
-            <div>To-Dos created: {(summary.todos_created||[]).join(", ")}</div>
-            <div>Attendees: {(summary.attendee_ids||[]).join(", ")}</div>
-            <div>Rating: {summary.rating}</div>
+          <CardHeader><CardTitle>Meeting summary</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div><span className="font-medium">Scorecard week:</span> {summary.scorecard_week}</div>
+            <div><span className="font-medium">Measurable status:</span> {Object.entries(summary.measurable_status || {}).map(([k, v]) => `${k} ${v}`).join(" · ")}</div>
+            <div><span className="font-medium">Issues solved:</span> {(summary.issues_solved || []).join(", ") || "none"}</div>
+            <div><span className="font-medium">To-Dos created:</span> {(summary.todos_created || []).join(", ") || "none"}</div>
+            <div><span className="font-medium">Attendees:</span> {(summary.attendee_ids || []).join(", ")}</div>
+            <div><span className="font-medium">Rating:</span> {summary.rating ?? "—"}</div>
           </CardContent>
         </Card>
       )}

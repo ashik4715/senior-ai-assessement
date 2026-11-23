@@ -9,3 +9,4 @@ pgdata/
 playwright-report/
 test-results/
 backend/.pytest_cache/
+explanation_video.md
